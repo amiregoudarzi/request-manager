@@ -1,3 +1,4 @@
+using OrganizationRequests.Domain.Enums;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
@@ -62,9 +63,9 @@ public sealed class AccountClaimsFactory(UserManager<Account> users, IOptions<Id
         // Roles are deliberately derived from current reviewer assignments.
         foreach (var claim in identity.FindAll(Options.ClaimsIdentity.RoleClaimType).ToArray())
             identity.RemoveClaim(claim);
-        identity.AddClaim(new Claim(Options.ClaimsIdentity.RoleClaimType, "Employee"));
+        identity.AddClaim(new Claim(Options.ClaimsIdentity.RoleClaimType, nameof(UserRole.Employee)));
         if (await db.UnitReviewers.AsNoTracking().AnyAsync(x => x.UserId == user.Id))
-            identity.AddClaim(new Claim(Options.ClaimsIdentity.RoleClaimType, "Reviewer"));
+            identity.AddClaim(new Claim(Options.ClaimsIdentity.RoleClaimType, nameof(UserRole.Reviewer)));
         return identity;
     }
 }
