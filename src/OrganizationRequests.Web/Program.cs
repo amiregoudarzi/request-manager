@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
+using OrganizationRequests.Application.Services;
 using OrganizationRequests.Infrastructure;
 using OrganizationRequests.Infrastructure.Persistence;
 using OrganizationRequests.Infrastructure.Security;

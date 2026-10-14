@@ -1,6 +1,7 @@
 using FastEndpoints;
 using FluentValidation;
 using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Web.Modules.Requests.Approve;

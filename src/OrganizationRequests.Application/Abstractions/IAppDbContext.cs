@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Domain.Entities;
 
-namespace OrganizationRequests.Application;
+namespace OrganizationRequests.Application.Abstractions;
 
 public interface IAppDbContext
 {

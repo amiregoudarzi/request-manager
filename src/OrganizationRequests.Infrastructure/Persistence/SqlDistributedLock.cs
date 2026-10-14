@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
 
 namespace OrganizationRequests.Infrastructure.Persistence;
 

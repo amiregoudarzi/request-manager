@@ -4,7 +4,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using OrganizationRequests.Application;
-using IAuthenticationService = OrganizationRequests.Application.IAuthenticationService;
+using IAuthenticationService = OrganizationRequests.Application.Abstractions.IAuthenticationService;
 
 namespace OrganizationRequests.Web.Modules.Auth.Login;
 

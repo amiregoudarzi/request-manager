@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace OrganizationRequests.Application;
+namespace OrganizationRequests.Application.Abstractions;
 
 public interface IAuthenticationService
 {

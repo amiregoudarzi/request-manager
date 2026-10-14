@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Infrastructure.Persistence;
 using OrganizationRequests.Infrastructure.Security;

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.Entities;
 using OrganizationRequests.Infrastructure.Security;
 

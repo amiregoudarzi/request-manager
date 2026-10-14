@@ -1,6 +1,6 @@
 using FastEndpoints;
 using FluentValidation;
-using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
 
 namespace OrganizationRequests.Web.Modules.Auth.Signup;
 

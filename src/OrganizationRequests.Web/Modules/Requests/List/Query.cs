@@ -2,6 +2,7 @@ using FastEndpoints;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Web.Modules.Requests.List;

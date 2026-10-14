@@ -1,6 +1,7 @@
+using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.Entities;
 
-namespace OrganizationRequests.Application;
+namespace OrganizationRequests.Application.Services;
 
 public sealed class RequestService(IRequestRepository repository) : IRequestService
 {

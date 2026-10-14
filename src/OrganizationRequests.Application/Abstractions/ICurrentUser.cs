@@ -1,5 +1,5 @@
 
-namespace OrganizationRequests.Application;
+namespace OrganizationRequests.Application.Abstractions;
 
 public interface ICurrentUser
 {

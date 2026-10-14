@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
 
 namespace OrganizationRequests.Web.Security;
 

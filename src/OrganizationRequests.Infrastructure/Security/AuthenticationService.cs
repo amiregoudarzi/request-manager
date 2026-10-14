@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application;
+using OrganizationRequests.Application.Abstractions;
 
 namespace OrganizationRequests.Infrastructure.Security;
 
