@@ -5,9 +5,9 @@ namespace OrganizationRequests.Application.Abstractions;
 public interface IRequestRepository
 {
     IQueryable<ServiceRequest> VisibleTo(Guid userId);
-    Task<bool> HasEmployeeAsync(Guid userId, CancellationToken ct);
-    Task<bool> HasActiveUnitAsync(Guid unitId, CancellationToken ct);
-    Task<bool> HasReceiverAsync(Guid employeeId, Guid unitId, CancellationToken ct);
+    // Null means the creator has no employee membership.
+    Task<RequestCreationContext?> GetCreationContextAsync(Guid creatorId, Guid unitId,
+        Guid? receiverEmployeeId, CancellationToken ct);
     Task<bool> HasReviewerAsync(Guid userId, Guid unitId, CancellationToken ct);
     // Acquire the request lock before reading; requires ExecuteInTransactionAsync.
     Task<ServiceRequest?> GetForReviewAsync(Guid requestId, CancellationToken ct);

@@ -9,12 +9,12 @@ public sealed class RequestService(IRequestRepository repository) : IRequestServ
         Guid creatorId, Guid destinationUnitId, Guid? receiverEmployeeId, CancellationToken ct) =>
         repository.ExecuteInTransactionAsync(async token =>
         {
-            if (!await repository.HasEmployeeAsync(creatorId, token))
+            var context = await repository.GetCreationContextAsync(creatorId, destinationUnitId, receiverEmployeeId, token);
+            if (context is null)
                 throw new RequestException(403, "Your account must be assigned to an organizational unit first.");
-            if (!await repository.HasActiveUnitAsync(destinationUnitId, token))
+            if (!context.HasActiveUnit)
                 throw new RequestException(404, "Destination unit was not found or is inactive.");
-            if (receiverEmployeeId.HasValue &&
-                !await repository.HasReceiverAsync(receiverEmployeeId.Value, destinationUnitId, token))
+            if (!context.HasReceiver)
                 throw new RequestException(400, "Receiver must be an employee of the destination unit.");
 
             var request = new ServiceRequest(title, description, type, creatorId, destinationUnitId, receiverEmployeeId);

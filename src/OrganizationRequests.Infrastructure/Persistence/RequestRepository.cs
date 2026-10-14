@@ -12,14 +12,14 @@ public sealed class RequestRepository(AppDbContext db, IDistributedLock distribu
             db.Employees.Any(employee => employee.UserId == userId &&
                 employee.OrganizationalUnitId == request.OrganizationalUnitId));
 
-    public Task<bool> HasEmployeeAsync(Guid userId, CancellationToken ct) =>
-        db.Employees.AnyAsync(x => x.UserId == userId, ct);
-
-    public Task<bool> HasActiveUnitAsync(Guid unitId, CancellationToken ct) =>
-        db.OrganizationalUnits.AnyAsync(x => x.Id == unitId && x.IsActive, ct);
-
-    public Task<bool> HasReceiverAsync(Guid employeeId, Guid unitId, CancellationToken ct) =>
-        db.Employees.AnyAsync(x => x.Id == employeeId && x.OrganizationalUnitId == unitId, ct);
+    public Task<RequestCreationContext?> GetCreationContextAsync(Guid creatorId, Guid unitId,
+        Guid? receiverEmployeeId, CancellationToken ct) =>
+        db.Employees.AsNoTracking().Where(x => x.UserId == creatorId)
+            .Select(x => new RequestCreationContext(
+                db.OrganizationalUnits.Any(unit => unit.Id == unitId && unit.IsActive),
+                !receiverEmployeeId.HasValue || db.Employees.Any(receiver =>
+                    receiver.Id == receiverEmployeeId.Value && receiver.OrganizationalUnitId == unitId)))
+            .SingleOrDefaultAsync(ct);
 
     public Task<bool> HasReviewerAsync(Guid userId, Guid unitId, CancellationToken ct) =>
         db.UnitReviewers.AnyAsync(x => x.UserId == userId && x.OrganizationalUnitId == unitId, ct);
