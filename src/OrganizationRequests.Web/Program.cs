@@ -16,147 +16,164 @@ using OrganizationRequests.Infrastructure.Persistence;
 using OrganizationRequests.Infrastructure.Security;
 using OrganizationRequests.Web.Security;
 
-var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("SqlServer");
-if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("Configure ConnectionStrings:SqlServer using user-secrets or environment variables.");
-
-builder.Services.AddInfrastructure(connectionString);
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUser, CurrentUser>();
-builder.Services.AddFastEndpoints();
-if (builder.Environment.IsDevelopment())
-    builder.Services.SwaggerDocument(options =>
-    {
-        options.EnableJWTBearerAuth = false;
-        options.DocumentSettings = settings =>
-        {
-            settings.Title = "Organization Requests API";
-            settings.Version = "v1";
-            settings.Description = "Login through /api/auth/login to use the session cookie. Swagger adds CSRF tokens automatically for writes.";
-            settings.AddAuth(IdentityConstants.ApplicationScheme, new OpenApiSecurityScheme
-            {
-                Type = OpenApiSecuritySchemeType.ApiKey,
-                In = OpenApiSecurityApiKeyLocation.Cookie,
-                Name = "__Host-organization-requests",
-                Description = "Created by the login endpoint; sent automatically by the browser."
-            });
-        };
-    });
-builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<ApiExceptionHandler>();
-builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
-    .AddCookie(IdentityConstants.ApplicationScheme, options =>
-    {
-        options.Cookie.Name = "__Host-organization-requests";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = false;
-        options.Events.OnRedirectToLogin = context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return Task.CompletedTask;
-        };
-        options.Events.OnRedirectToAccessDenied = context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return Task.CompletedTask;
-        };
-        options.Events.OnValidatePrincipal = async context =>
-        {
-            var services = context.HttpContext.RequestServices;
-            var users = services.GetRequiredService<UserManager<Account>>();
-            var signIn = services.GetRequiredService<SignInManager<Account>>();
-            var account = await signIn.ValidateSecurityStampAsync(context.Principal);
-            if (account is null || !account.IsActive || await users.IsLockedOutAsync(account))
-            {
-                context.RejectPrincipal();
-                await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
-                return;
-            }
-            context.ReplacePrincipal(await signIn.CreateUserPrincipalAsync(account));
-            context.ShouldRenew = false;
-        };
-    });
-builder.Services.AddAuthorization();
-builder.Services.AddAntiforgery(options =>
+try
 {
-    options.HeaderName = "X-CSRF-TOKEN";
-    options.Cookie.Name = "__Host-organization-requests-csrf";
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.Strict;
-});
-
-var protection = builder.Services.AddDataProtection()
-    .SetApplicationName("OrganizationRequests")
-    .PersistKeysToDbContext<AppDbContext>();
-var certificatePath = builder.Configuration["DataProtection:CertificatePath"];
-if (!string.IsNullOrWhiteSpace(certificatePath))
-    protection.ProtectKeysWithCertificate(X509CertificateLoader.LoadPkcs12FromFile(
-        certificatePath, builder.Configuration["DataProtection:CertificatePassword"]));
-else if (!builder.Environment.IsDevelopment())
-    throw new InvalidOperationException("Configure a shared DataProtection:CertificatePath in production.");
-
-var app = builder.Build();
-if (args.Contains("--seed"))
+    await RunApplicationAsync(args);
+}
+catch (Exception exception)
 {
-    if (!app.Environment.IsDevelopment())
-        throw new InvalidOperationException("Demo seed is allowed only in Development.");
-    var password = builder.Configuration["Seed:Password"]
-        ?? throw new InvalidOperationException("Configure Seed:Password in user-secrets before seeding.");
-    await app.Services.SeedDevelopmentAsync(password, CancellationToken.None);
-    app.Logger.LogInformation("Development users employee/reviewer and IT destination unit are ready.");
-    return;
+    // Startup errors happen before the HTTP middleware can handle requests.
+    using var loggerFactory = LoggerFactory.Create(logging => logging.AddSimpleConsole());
+    loggerFactory.CreateLogger("Startup").LogCritical(exception,
+        "Application startup or host execution failed.");
+    Environment.ExitCode = 1;
 }
 
-app.UseExceptionHandler();
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-app.Use(async (context, next) =>
+static async Task RunApplicationAsync(string[] args)
 {
-    if (context.Request.Path.StartsWithSegments("/api") &&
-        !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method) &&
-        !HttpMethods.IsOptions(context.Request.Method))
-    {
-        // Public credential endpoints still require CSRF, including login CSRF protection.
-        if (context.User.Identity?.IsAuthenticated != true &&
-            context.Request.Path != "/api/auth/login" && context.Request.Path != "/api/auth/signup")
-            throw new RequestException(401, "Authentication is required.");
-        await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context);
-    }
-    await next(context);
-});
-app.UseFastEndpoints(config =>
-{
-    config.Serializer.Options.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
-    config.Security.RoleClaimType = ClaimTypes.Role;
-    config.Errors.UseProblemDetails();
-});
-if (app.Environment.IsDevelopment())
-    app.UseSwaggerGen(uiConfig: options =>
-    {
-        options.WithCredentials = true;
-        options.AdditionalSettings["requestInterceptor"] = new JRaw("""
-            async function(request) {
-                const target = new URL(request.url, window.location.origin);
-                if (target.origin === window.location.origin && target.pathname.startsWith('/api/')) {
-                    request.credentials = 'same-origin';
-                    if (!['GET', 'HEAD', 'OPTIONS'].includes((request.method || 'GET').toUpperCase())) {
-                        const response = await fetch('/api/auth/csrf', {
-                            credentials: 'same-origin', cache: 'no-store'
-                        });
-                        if (!response.ok) throw new Error('Could not obtain a CSRF token.');
-                        const result = await response.json();
-                        request.headers = request.headers || {};
-                        request.headers['X-CSRF-TOKEN'] = result.token;
-                    }
+    var builder = WebApplication.CreateBuilder(args);
+    var connectionString = builder.Configuration.GetConnectionString("SqlServer");
+    if (string.IsNullOrWhiteSpace(connectionString))
+        throw new InvalidOperationException("Configure ConnectionStrings:SqlServer using user-secrets or environment variables.");
+
+    builder.Services.AddInfrastructure(connectionString);
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+    builder.Services.AddFastEndpoints();
+    if (builder.Environment.IsDevelopment())
+        builder.Services.SwaggerDocument(options =>
+        {
+            options.EnableJWTBearerAuth = false;
+            options.DocumentSettings = settings =>
+            {
+                settings.Title = "Organization Requests API";
+                settings.Version = "v1";
+                settings.Description = "Login through /api/auth/login to use the session cookie. Swagger adds CSRF tokens automatically for writes.";
+                settings.AddAuth(IdentityConstants.ApplicationScheme, new OpenApiSecurityScheme
+                {
+                    Type = OpenApiSecuritySchemeType.ApiKey,
+                    In = OpenApiSecurityApiKeyLocation.Cookie,
+                    Name = "__Host-organization-requests",
+                    Description = "Created by the login endpoint; sent automatically by the browser."
+                });
+            };
+        });
+    builder.Services.AddProblemDetails();
+    builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+    builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
+        .AddCookie(IdentityConstants.ApplicationScheme, options =>
+        {
+            options.Cookie.Name = "__Host-organization-requests";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.ExpireTimeSpan = TimeSpan.FromHours(8);
+            options.SlidingExpiration = false;
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            };
+            options.Events.OnValidatePrincipal = async context =>
+            {
+                var services = context.HttpContext.RequestServices;
+                var users = services.GetRequiredService<UserManager<Account>>();
+                var signIn = services.GetRequiredService<SignInManager<Account>>();
+                var account = await signIn.ValidateSecurityStampAsync(context.Principal);
+                if (account is null || !account.IsActive || await users.IsLockedOutAsync(account))
+                {
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+                    return;
                 }
-                return request;
-            }
-            """);
+                context.ReplacePrincipal(await signIn.CreateUserPrincipalAsync(account));
+                context.ShouldRenew = false;
+            };
+        });
+    builder.Services.AddAuthorization();
+    builder.Services.AddAntiforgery(options =>
+    {
+        options.HeaderName = "X-CSRF-TOKEN";
+        options.Cookie.Name = "__Host-organization-requests-csrf";
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
     });
-app.Run();
+
+    var protection = builder.Services.AddDataProtection()
+        .SetApplicationName("OrganizationRequests")
+        .PersistKeysToDbContext<AppDbContext>();
+    var certificatePath = builder.Configuration["DataProtection:CertificatePath"];
+    if (!string.IsNullOrWhiteSpace(certificatePath))
+        protection.ProtectKeysWithCertificate(X509CertificateLoader.LoadPkcs12FromFile(
+            certificatePath, builder.Configuration["DataProtection:CertificatePassword"]));
+    else if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("Configure a shared DataProtection:CertificatePath in production.");
+
+    await using var app = builder.Build();
+    if (args.Contains("--seed"))
+    {
+        if (!app.Environment.IsDevelopment())
+            throw new InvalidOperationException("Demo seed is allowed only in Development.");
+        var password = builder.Configuration["Seed:Password"]
+            ?? throw new InvalidOperationException("Configure Seed:Password in user-secrets before seeding.");
+        await app.Services.SeedDevelopmentAsync(password, CancellationToken.None);
+        app.Logger.LogInformation("Development users employee/reviewer and IT destination unit are ready.");
+        return;
+    }
+
+    // Keep exception handling before authentication, CSRF and endpoint execution.
+    app.UseExceptionHandler();
+    app.UseHttpsRedirection();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api") &&
+            !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method) &&
+            !HttpMethods.IsOptions(context.Request.Method))
+        {
+            // Public credential endpoints still require CSRF, including login CSRF protection.
+            if (context.User.Identity?.IsAuthenticated != true &&
+                context.Request.Path != "/api/auth/login" && context.Request.Path != "/api/auth/signup")
+                throw new RequestException(401, "Authentication is required.");
+            await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context);
+        }
+        await next(context);
+    });
+    app.UseFastEndpoints(config =>
+    {
+        config.Serializer.Options.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
+        config.Security.RoleClaimType = ClaimTypes.Role;
+        config.Errors.UseProblemDetails();
+    });
+    if (app.Environment.IsDevelopment())
+        app.UseSwaggerGen(uiConfig: options =>
+        {
+            options.WithCredentials = true;
+            options.AdditionalSettings["requestInterceptor"] = new JRaw("""
+                async function(request) {
+                    const target = new URL(request.url, window.location.origin);
+                    if (target.origin === window.location.origin && target.pathname.startsWith('/api/')) {
+                        request.credentials = 'same-origin';
+                        if (!['GET', 'HEAD', 'OPTIONS'].includes((request.method || 'GET').toUpperCase())) {
+                            const response = await fetch('/api/auth/csrf', {
+                                credentials: 'same-origin', cache: 'no-store'
+                            });
+                            if (!response.ok) throw new Error('Could not obtain a CSRF token.');
+                            const result = await response.json();
+                            request.headers = request.headers || {};
+                            request.headers['X-CSRF-TOKEN'] = result.token;
+                        }
+                    }
+                    return request;
+                }
+                """);
+        });
+    await app.RunAsync();
+}
