@@ -1,20 +1,19 @@
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using OrganizationRequests.Application;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.Entities;
+using OrganizationRequests.Domain.Enums;
 using OrganizationRequests.Infrastructure.Security;
 
 namespace OrganizationRequests.Infrastructure.Persistence;
 
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
-    : IdentityUserContext<Account, Guid>(options), IAppDbContext, IDataProtectionKeyContext
+    : DbContext(options), IAppDbContext, IDataProtectionKeyContext
 {
+    public DbSet<Account> Users => Set<Account>();
     public DbSet<OrganizationalUnit> OrganizationalUnits => Set<OrganizationalUnit>();
-    public DbSet<UnitReviewer> UnitReviewers => Set<UnitReviewer>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<ServiceRequest> Requests => Set<ServiceRequest>();
     public DbSet<RequestStatusHistory> RequestStatusHistories => Set<RequestStatusHistory>();
@@ -34,11 +33,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new AccountConfiguration());
         builder.ApplyConfiguration(new UnitConfiguration());
         builder.ApplyConfiguration(new EmployeeConfiguration());
-        builder.ApplyConfiguration(new ReviewerConfiguration());
         builder.ApplyConfiguration(new RequestConfiguration());
         builder.ApplyConfiguration(new HistoryConfiguration());
         builder.ApplyConfiguration(new KeyConfiguration());
-        ConfigureIdentityTables(builder);
     }
 
     private static void ConfigureEntity<T>(EntityTypeBuilder<T> builder) where T : Entity
@@ -50,53 +47,29 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             .HasColumnType("datetime2").IsRequired();
     }
 
-    // Only Identity's user store is enabled; no role-management tables are needed.
-    private static void ConfigureIdentityTables(ModelBuilder builder)
-    {
-        builder.Entity<IdentityUserClaim<Guid>>(b =>
-        {
-            b.ToTable("UserClaims");
-            b.Property(x => x.Id).HasColumnName("id");
-            b.Property(x => x.UserId).HasColumnName("user_id");
-            b.Property(x => x.ClaimType).HasColumnName("claim_type");
-            b.Property(x => x.ClaimValue).HasColumnName("claim_value");
-        });
-        builder.Entity<IdentityUserLogin<Guid>>(b =>
-        {
-            b.ToTable("UserLogins");
-            b.Property(x => x.LoginProvider).HasColumnName("login_provider").HasMaxLength(128);
-            b.Property(x => x.ProviderKey).HasColumnName("provider_key").HasMaxLength(128);
-            b.Property(x => x.ProviderDisplayName).HasColumnName("provider_display_name");
-            b.Property(x => x.UserId).HasColumnName("user_id");
-        });
-        builder.Entity<IdentityUserToken<Guid>>(b =>
-        {
-            b.ToTable("UserTokens");
-            b.Property(x => x.LoginProvider).HasColumnName("login_provider").HasMaxLength(128);
-            b.Property(x => x.Name).HasColumnName("name").HasMaxLength(128);
-            b.Property(x => x.Value).HasColumnName("value");
-            b.Property(x => x.UserId).HasColumnName("user_id");
-        });
-    }
-
     private sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
     {
         public void Configure(EntityTypeBuilder<Account> b)
         {
-            b.ToTable("Users");
+            b.ToTable("Users", table => table.HasCheckConstraint("CK_Users_Role",
+                "[role] IN ('Employee','UnitReviewer')"));
+            b.HasKey(x => x.Id);
+            b.HasIndex(x => x.NormalizedUserName).HasDatabaseName("UserNameIndex").IsUnique();
+            b.HasIndex(x => x.NormalizedEmail).HasDatabaseName("EmailIndex");
             b.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             b.Property(x => x.CreatedDateUtc).HasColumnName("created_date_utc").HasColumnType("datetime2")
                 .HasConversion(value => value, value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
             b.Property(x => x.DisplayName).HasColumnName("display_name").HasMaxLength(200).IsRequired();
+            b.Property(x => x.Role).HasColumnName("role").HasConversion<string>().HasMaxLength(32);
             b.Property(x => x.IsActive).HasColumnName("is_active");
-            b.Property(x => x.UserName).HasColumnName("user_name");
-            b.Property(x => x.NormalizedUserName).HasColumnName("normalized_user_name");
-            b.Property(x => x.Email).HasColumnName("email");
-            b.Property(x => x.NormalizedEmail).HasColumnName("normalized_email");
+            b.Property(x => x.UserName).HasColumnName("user_name").HasMaxLength(256);
+            b.Property(x => x.NormalizedUserName).HasColumnName("normalized_user_name").HasMaxLength(256);
+            b.Property(x => x.Email).HasColumnName("email").HasMaxLength(256);
+            b.Property(x => x.NormalizedEmail).HasColumnName("normalized_email").HasMaxLength(256);
             b.Property(x => x.EmailConfirmed).HasColumnName("email_confirmed");
             b.Property(x => x.PasswordHash).HasColumnName("password_hash");
             b.Property(x => x.SecurityStamp).HasColumnName("security_stamp");
-            b.Property(x => x.ConcurrencyStamp).HasColumnName("concurrency_stamp");
+            b.Property(x => x.ConcurrencyStamp).HasColumnName("concurrency_stamp").IsConcurrencyToken();
             b.Property(x => x.PhoneNumber).HasColumnName("phone_number");
             b.Property(x => x.PhoneNumberConfirmed).HasColumnName("phone_number_confirmed");
             b.Property(x => x.TwoFactorEnabled).HasColumnName("two_factor_enabled");
@@ -133,22 +106,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             b.HasOne<OrganizationalUnit>().WithMany().HasForeignKey(x => x.OrganizationalUnitId)
                 .OnDelete(DeleteBehavior.Restrict);
             b.HasIndex(x => new { x.OrganizationalUnitId, x.Name, x.Id });
-        }
-    }
-
-    private sealed class ReviewerConfiguration : IEntityTypeConfiguration<UnitReviewer>
-    {
-        public void Configure(EntityTypeBuilder<UnitReviewer> b)
-        {
-            b.ToTable("UnitReviewers");
-            ConfigureEntity(b);
-            b.Property(x => x.UserId).HasColumnName("user_id");
-            b.Property(x => x.OrganizationalUnitId).HasColumnName("organizational_unit_id");
-            b.HasIndex(x => new { x.UserId, x.OrganizationalUnitId }).IsUnique();
-            b.HasOne<Employee>().WithMany().HasForeignKey(x => new { x.UserId, x.OrganizationalUnitId })
-                .HasPrincipalKey(x => new { x.UserId, x.OrganizationalUnitId }).OnDelete(DeleteBehavior.Restrict);
-            b.HasOne<OrganizationalUnit>().WithMany().HasForeignKey(x => x.OrganizationalUnitId)
-                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 
