@@ -5,11 +5,13 @@
 ## ساختار
 
 - `Domain`: مدل‌ها، کلاس پایه `Entity` با `Id` و `CreatedDateUtc` و قواعد تغییر وضعیت.
-- `Application`: قراردادهای دیتابیس، هویت، احراز هویت، repository و قفل.
-- `Infrastructure`: EF Core، SQL Server، configurationها در همان `AppDbContext`، repository تراکنشی و Identity.
+- `Application`: هر interface در فایل مستقل داخل `Abstractions`؛ سرویس `RequestService` در `Services` مسئول اجرای ثبت و بررسی درخواست، مجوز واحد و خطاهای کاربردی است.
+- `Infrastructure`: EF Core، SQL Server، configurationها در همان `AppDbContext`، repository برای query، ذخیره‌سازی، قفل و تراکنش و Identity. مدل حساب، سرویس احراز هویت و ساخت Claim هرکدام فایل مستقل دارند.
 - `Web`: FastEndpoints؛ هر عملیات در `Modules/...` دارای `Endpoint.cs` و `Command.cs` یا `Query.cs` است. handler، DTO و validator در فایل همان عملیات قرار دارند.
 
 یک Solution با چهار پروژه؛ Domain مستقل است. Web برای اجرای query از قرارداد `IAppDbContext` استفاده می‌کند و به پیاده‌سازی دیتابیس وابسته نیست. composition root در `Program.cs` زیرساخت را ثبت می‌کند.
+
+Commandهای ثبت و تصمیم فقط سرویس Application را فراخوانی می‌کنند. سرویس به قرارداد `IRequestRepository` وابسته است و Infrastructure این قرارداد را پیاده می‌کند. Repository از طریق `ExecuteInTransactionAsync` عملیات سرویس را در تراکنش اجرا می‌کند؛ تنها پس از موفقیت عملیات، SaveChanges و commit انجام می‌شوند. قفل بررسی، پیش از خواندن درخواست گرفته می‌شود و تا پایان همان تراکنش باقی می‌ماند. Generic Repository یا UnitOfWork جدا اضافه نشده است. Queryهای ساده با EF و قراردادهای Application در فایل همان عملیات باقی مانده‌اند؛ این انتخاب عملی برای کوچک نگه‌داشتن پروژه است.
 
 ## پیش‌نیاز و اتصال
 
@@ -65,6 +67,8 @@ Solution را باز کنید، build configuration را روی `Debug` و run c
 هر کارمند در جدول `Employees` به یک حساب و یک واحد سازمانی مرتبط است. همه اعضای یک واحد، درخواست‌های مقصد همان واحد را می‌بینند؛ ثبت‌کننده نیز درخواست‌های خودش را برای پیگیری می‌بیند. با فیلتر `organizationalUnitId` می‌توان ورودی‌های واحد را فهرست کرد؛ این فیلتر دسترسی به اطلاعات واحدهای دیگر ایجاد نمی‌کند.
 
 همه حساب‌های فعال نقش Employee دارند، اما ثبت درخواست نیازمند عضویت سازمانی در `Employees` است. عضویت توسط سازمان تعیین می‌شود و در signup عمومی قابل انتخاب نیست. فقط عضو دارای assignment در `UnitReviewers` نقش UnitReviewer می‌گیرد و فقط درخواست‌های مقصد همان واحد را تأیید یا رد می‌کند. Cookie و نقش‌ها در هر درخواست بازبینی می‌شوند؛ عضویت و مجوز واحد از دیتابیس کنترل می‌شوند.
+
+مسئول واحد هر دو نقش `Employee` و `UnitReviewer` را دارد؛ بنابراین همه عملیات کارمند را نیز انجام می‌دهد. این سلسله‌مراتب با تخصیص هر دو Claim پیاده شده و ASP.NET Core نقش‌ها را خودکار از یکدیگر به ارث نمی‌برد. FK مرکب جدول UnitReviewers عضویت مسئول در همان واحد را تضمین می‌کند؛ بررسی مجدد Employees برای همان assignment لازم نیست.
 
 نام نقش‌ها در enum `UserRole` در Domain تعریف شده و در بررسی Endpoint و ساخت Claim از `nameof(UserRole.Employee)` و `nameof(UserRole.UnitReviewer)` استفاده می‌شود. `normalized_user_name` فقط برای جست‌وجوی حساب هنگام ورود است و نقش را تعیین نمی‌کند.
 
