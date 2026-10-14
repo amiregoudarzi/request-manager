@@ -44,86 +44,6 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                     b.ToTable("DataProtectionKeys", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ClaimType")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("claim_type");
-
-                    b.Property<string>("ClaimValue")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("claim_value");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserClaims", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
-                {
-                    b.Property<string>("LoginProvider")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("login_provider");
-
-                    b.Property<string>("ProviderKey")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("provider_key");
-
-                    b.Property<string>("ProviderDisplayName")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("provider_display_name");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("LoginProvider", "ProviderKey");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserLogins", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("LoginProvider")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("login_provider");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Value")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("value");
-
-                    b.HasKey("UserId", "LoginProvider", "Name");
-
-                    b.ToTable("UserTokens", (string)null);
-                });
-
             modelBuilder.Entity("OrganizationRequests.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("Id")
@@ -149,6 +69,8 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("UserId", "OrganizationalUnitId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -304,34 +226,6 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("OrganizationRequests.Domain.Entities.UnitReviewer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedDateUtc")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_date_utc");
-
-                    b.Property<Guid>("OrganizationalUnitId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("organizational_unit_id");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationalUnitId");
-
-                    b.HasIndex("UserId", "OrganizationalUnitId")
-                        .IsUnique();
-
-                    b.ToTable("UnitReviewers", (string)null);
-                });
-
             modelBuilder.Entity("OrganizationRequests.Infrastructure.Security.Account", b =>
                 {
                     b.Property<Guid>("Id")
@@ -400,6 +294,12 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("phone_number_confirmed");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("role");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("security_stamp");
@@ -423,34 +323,10 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[normalized_user_name] IS NOT NULL");
 
-                    b.ToTable("Users", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
-                {
-                    b.HasOne("OrganizationRequests.Infrastructure.Security.Account", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
-                {
-                    b.HasOne("OrganizationRequests.Infrastructure.Security.Account", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
-                {
-                    b.HasOne("OrganizationRequests.Infrastructure.Security.Account", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.ToTable("Users", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Users_Role", "[role] IN ('Employee','UnitReviewer')");
+                        });
                 });
 
             modelBuilder.Entity("OrganizationRequests.Domain.Entities.Employee", b =>
@@ -502,22 +378,6 @@ namespace OrganizationRequests.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ReceiverEmployeeId", "OrganizationalUnitId")
                         .HasPrincipalKey("Id", "OrganizationalUnitId")
                         .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("OrganizationRequests.Domain.Entities.UnitReviewer", b =>
-                {
-                    b.HasOne("OrganizationRequests.Domain.Entities.OrganizationalUnit", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationalUnitId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("OrganizationRequests.Domain.Entities.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("UserId", "OrganizationalUnitId")
-                        .HasPrincipalKey("UserId", "OrganizationalUnitId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("OrganizationRequests.Domain.Entities.ServiceRequest", b =>
