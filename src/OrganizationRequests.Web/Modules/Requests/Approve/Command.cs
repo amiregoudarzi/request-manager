@@ -15,7 +15,7 @@ public sealed class Command : ICommand<RequestResponse>
     {
         public async Task<RequestResponse> ExecuteAsync(Command command, CancellationToken ct)
         {
-            var request = await repository.ReviewAsync(command.Id, user.Id, user.IsReviewer,
+            var request = await repository.ReviewAsync(command.Id, user.Id, user.IsUnitReviewer,
                 RequestStatus.Approved, command.Comment, ct);
             return RequestResponse.From(request);
         }
