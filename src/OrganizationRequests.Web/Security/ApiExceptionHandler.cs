@@ -12,15 +12,19 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
     {
         if (exception is OperationCanceledException && context.RequestAborted.IsCancellationRequested)
             return false;
+        if (context.Response.HasStarted)
+            return false;
         var (status, detail) = exception switch
         {
-            RequestException error => (error.StatusCode, error.Message),
+            RequestException error when error.StatusCode is >= 400 and < 500 => (error.StatusCode, error.Message),
             DbUpdateConcurrencyException => (409, "The request changed during processing. Reload its current state."),
             AntiforgeryValidationException => (400, "A valid X-CSRF-TOKEN and matching cookie are required."),
+            BadHttpRequestException error => (error.StatusCode, "The HTTP request could not be processed."),
             _ => (500, "An unexpected error occurred.")
         };
         if (status == 500) logger.LogError(exception, "Request failed. TraceId: {TraceId}", context.TraceIdentifier);
         context.Response.StatusCode = status;
+        context.Response.Headers.CacheControl = "no-store";
         await context.Response.WriteAsJsonAsync(new ProblemDetails
         {
             Status = status,
