@@ -8,17 +8,19 @@ public sealed class ServiceRequest : Entity
     private readonly List<RequestStatusHistory> _history = [];
     private ServiceRequest() { }
 
-    public ServiceRequest(string title, string description, RequestType type, Guid createdById, Guid unitId)
+    public ServiceRequest(string title, string description, RequestType type, Guid createdById, Guid unitId,
+        Guid? receiverEmployeeId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
-        if (!Enum.IsDefined(type) || createdById == Guid.Empty || unitId == Guid.Empty)
-            throw new ArgumentException("Valid type, creator and destination unit are required.");
+        if (!Enum.IsDefined(type) || createdById == Guid.Empty || unitId == Guid.Empty || receiverEmployeeId == Guid.Empty)
+            throw new ArgumentException("Valid type, creator, destination unit and optional receiver are required.");
         Title = title.Trim();
         Description = description.Trim();
         Type = type;
         CreatedById = createdById;
         OrganizationalUnitId = unitId;
+        ReceiverEmployeeId = receiverEmployeeId;
         _history.Add(new RequestStatusHistory(Id, null, RequestStatus.Pending, createdById, null));
     }
 
@@ -27,6 +29,8 @@ public sealed class ServiceRequest : Entity
     public RequestType Type { get; private set; }
     public Guid CreatedById { get; private set; }
     public Guid OrganizationalUnitId { get; private set; }
+    // A request can target a unit without naming an individual receiver.
+    public Guid? ReceiverEmployeeId { get; private set; }
     public RequestStatus Status { get; private set; } = RequestStatus.Pending;
     public byte[] RowVersion { get; private set; } = [];
     public IReadOnlyCollection<RequestStatusHistory> History => _history;
