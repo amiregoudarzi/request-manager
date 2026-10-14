@@ -13,7 +13,7 @@ public sealed class Query : ICommand<RequestResponse>
         : ICommandHandler<Query, RequestResponse>
     {
         public async Task<RequestResponse> ExecuteAsync(Query query, CancellationToken ct) =>
-            await repository.VisibleTo(user.Id, user.IsReviewer).Where(x => x.Id == query.Id)
+            await repository.VisibleTo(user.Id).Where(x => x.Id == query.Id)
                 .Select(RequestResponse.Projection).SingleOrDefaultAsync(ct)
             ?? throw new RequestException(404, "Request was not found.");
     }

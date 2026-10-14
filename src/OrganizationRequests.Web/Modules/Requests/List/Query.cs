@@ -20,7 +20,7 @@ public sealed class Query : ICommand<Query.Response>
     {
         public async Task<Response> ExecuteAsync(Query query, CancellationToken ct)
         {
-            var requests = repository.VisibleTo(user.Id, user.IsReviewer);
+            var requests = repository.VisibleTo(user.Id);
             if (query.Status.HasValue) requests = requests.Where(x => x.Status == query.Status.Value);
             if (query.Type.HasValue) requests = requests.Where(x => x.Type == query.Type.Value);
             if (query.OrganizationalUnitId.HasValue)

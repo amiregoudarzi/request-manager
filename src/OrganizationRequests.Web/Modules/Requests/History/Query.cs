@@ -20,7 +20,7 @@ public sealed class Query : ICommand<Query.Response>
     {
         public async Task<Response> ExecuteAsync(Query query, CancellationToken ct)
         {
-            if (!await repository.VisibleTo(user.Id, user.IsReviewer).AnyAsync(x => x.Id == query.Id, ct))
+            if (!await repository.VisibleTo(user.Id).AnyAsync(x => x.Id == query.Id, ct))
                 throw new RequestException(404, "Request was not found.");
             var history = db.RequestStatusHistories.AsNoTracking().Where(x => x.RequestId == query.Id);
             var total = await history.CountAsync(ct);
