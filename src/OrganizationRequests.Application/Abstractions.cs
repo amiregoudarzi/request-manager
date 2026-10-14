@@ -4,26 +4,11 @@ using OrganizationRequests.Domain.Entities;
 
 namespace OrganizationRequests.Application;
 
-public interface IAppDbContext
-{
-    DbSet<OrganizationalUnit> OrganizationalUnits { get; }
-    DbSet<UnitReviewer> UnitReviewers { get; }
-    DbSet<Employee> Employees { get; }
-    DbSet<ServiceRequest> Requests { get; }
-    DbSet<RequestStatusHistory> RequestStatusHistories { get; }
-}
 
-public interface ICurrentUser
-{
-    Guid Id { get; }
-    bool IsUnitReviewer { get; }
-}
 
-public interface IAuthenticationService
-{
-    Task<ClaimsPrincipal?> AuthenticateAsync(string username, string password, CancellationToken ct);
-    Task<Guid> RegisterAsync(string username, string password, string displayName, CancellationToken ct);
-}
+
+
+
 
 public interface IDistributedLock
 {
