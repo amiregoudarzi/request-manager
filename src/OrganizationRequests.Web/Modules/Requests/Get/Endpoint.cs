@@ -1,3 +1,4 @@
+using OrganizationRequests.Domain.Enums;
 using FastEndpoints;
 using OrganizationRequests.Application;
 
@@ -8,7 +9,7 @@ public sealed class Endpoint : Endpoint<Query, RequestResponse>
     public override void Configure()
     {
         Get("/api/requests/{id}");
-        Roles("Employee");
+        Roles(nameof(UserRole.Employee));
     }
 
     public override async Task HandleAsync(Query req, CancellationToken ct)
