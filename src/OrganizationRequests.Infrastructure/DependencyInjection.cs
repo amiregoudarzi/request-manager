@@ -23,7 +23,7 @@ public static class DependencyInjection
             options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             options.Lockout.AllowedForNewUsers = true;
         })
-            .AddEntityFrameworkStores<AppDbContext>()
+            .AddUserStore<AccountStore>()
             .AddSignInManager()
             .AddClaimsPrincipalFactory<AccountClaimsFactory>();
         return services;
