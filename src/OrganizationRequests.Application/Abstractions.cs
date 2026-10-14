@@ -8,6 +8,7 @@ public interface IAppDbContext
 {
     DbSet<OrganizationalUnit> OrganizationalUnits { get; }
     DbSet<UnitReviewer> UnitReviewers { get; }
+    DbSet<Employee> Employees { get; }
     DbSet<ServiceRequest> Requests { get; }
     DbSet<RequestStatusHistory> RequestStatusHistories { get; }
 }
@@ -15,7 +16,7 @@ public interface IAppDbContext
 public interface ICurrentUser
 {
     Guid Id { get; }
-    bool IsReviewer { get; }
+    bool IsUnitReviewer { get; }
 }
 
 public interface IAuthenticationService
@@ -32,9 +33,9 @@ public interface IDistributedLock
 
 public interface IRequestRepository
 {
-    IQueryable<ServiceRequest> VisibleTo(Guid userId, bool isReviewer);
+    IQueryable<ServiceRequest> VisibleTo(Guid userId);
     Task<ServiceRequest> CreateAsync(string title, string description, RequestType type,
-        Guid creatorId, Guid destinationUnitId, CancellationToken ct);
-    Task<ServiceRequest> ReviewAsync(Guid requestId, Guid actorId, bool isReviewer,
+        Guid creatorId, Guid destinationUnitId, Guid? receiverEmployeeId, CancellationToken ct);
+    Task<ServiceRequest> ReviewAsync(Guid requestId, Guid actorId, bool isUnitReviewer,
         RequestStatus result, string? comment, CancellationToken ct);
 }
