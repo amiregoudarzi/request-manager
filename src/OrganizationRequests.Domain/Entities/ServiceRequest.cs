@@ -1,8 +1,5 @@
 namespace OrganizationRequests.Domain.Entities;
 
-public enum RequestStatus { Pending, Approved, Rejected }
-public enum RequestType { Equipment, InternalService, TechnicalIssue }
-
 public sealed class ServiceRequest : Entity
 {
     private readonly List<RequestStatusHistory> _history = [];
