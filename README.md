@@ -41,6 +41,10 @@ dotnet run --project src/OrganizationRequests.Web --launch-profile https
 
 Seed حساب‌های موجود را دوباره ایجاد نمی‌کند و رمز آن‌ها را تغییر نمی‌دهد. هیچ حساب یا رمز پیش‌فرضی در production ایجاد نمی‌شود.
 
+## Debug در JetBrains Rider
+
+Solution را باز کنید، build configuration را روی `Debug` و run configuration را روی `OrganizationRequests.Web (Debug HTTPS)` بگذارید و Debug را اجرا کنید. پیکربندی مشترک در `.run/OrganizationRequests.Web.run.xml` ذخیره شده است؛ از پروژه Web، فریم‌ورک `net10.0` و پروفایل `https` استفاده می‌کند و قبل از اجرا build می‌کند. پروفایل محلی قدیمی `http` دیگر در `launchSettings.json` وجود ندارد و نباید انتخاب شود. اطلاعات اتصال همان user-secrets بالاست؛ رمز در run configuration ذخیره نمی‌شود.
+
 ## احراز هویت و مجوز
 
 `AuthenticationService` از ASP.NET Core Identity برای بررسی رمز و lockout استفاده می‌کند. نشست با Cookie از نوع HttpOnly، Secure و SameSite=Strict برقرار می‌شود؛ JWT استفاده نشده است.
