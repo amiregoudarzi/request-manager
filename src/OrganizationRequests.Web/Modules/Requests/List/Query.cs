@@ -27,6 +27,8 @@ public sealed class Query : ICommand<Query.Response>
             if (query.OrganizationalUnitId.HasValue)
                 requests = requests.Where(x => x.OrganizationalUnitId == query.OrganizationalUnitId.Value);
             var total = await requests.CountAsync(ct);
+            if (total == 0)
+                return new Response(query.Page, query.PageSize, total, []);
             var items = await requests.OrderByDescending(x => x.CreatedDateUtc).ThenByDescending(x => x.Id)
                 .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
                 .Select(RequestResponse.Projection).ToArrayAsync(ct);

@@ -19,6 +19,8 @@ public sealed class Query : ICommand<Query.Response>
         {
             var units = db.OrganizationalUnits.AsNoTracking().Where(x => x.IsActive);
             var total = await units.CountAsync(ct);
+            if (total == 0)
+                return new Response(query.Page, query.PageSize, total, []);
             var items = await units.OrderBy(x => x.Name).ThenBy(x => x.Id)
                 .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
                 .Select(x => new Item(x.Id, x.Name)).ToArrayAsync(ct);
