@@ -22,6 +22,11 @@ try
 {
     await RunApplicationAsync(args);
 }
+catch (HostAbortedException)
+{
+    // EF tooling stops the host intentionally after obtaining its services.
+    throw;
+}
 catch (Exception exception)
 {
     // Startup errors happen before the HTTP middleware can handle requests.
