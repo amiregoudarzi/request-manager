@@ -122,8 +122,9 @@ app.Use(async (context, next) =>
         !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method) &&
         !HttpMethods.IsOptions(context.Request.Method))
     {
-        // Preserve 401 for unauthenticated protected writes; login still requires CSRF.
-        if (context.User.Identity?.IsAuthenticated != true && context.Request.Path != "/api/auth/login")
+        // Public credential endpoints still require CSRF, including login CSRF protection.
+        if (context.User.Identity?.IsAuthenticated != true &&
+            context.Request.Path != "/api/auth/login" && context.Request.Path != "/api/auth/signup")
             throw new RequestException(401, "Authentication is required.");
         await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context);
     }
