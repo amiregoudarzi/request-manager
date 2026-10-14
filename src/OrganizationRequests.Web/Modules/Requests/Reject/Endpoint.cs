@@ -9,7 +9,7 @@ public sealed class Endpoint : Endpoint<Command, RequestResponse>
     public override void Configure()
     {
         Post("/api/requests/{id}/reject");
-        Roles(nameof(UserRole.Reviewer));
+        Roles(nameof(UserRole.UnitReviewer));
     }
 
     public override async Task HandleAsync(Command req, CancellationToken ct)
