@@ -46,10 +46,22 @@ public static class DependencyInjection
             unit = new OrganizationalUnit("IT");
             db.OrganizationalUnits.Add(unit);
         }
+        await EnsureEmployeeAsync(employee, unit);
+        await EnsureEmployeeAsync(reviewer, unit);
+        await db.SaveChangesAsync(ct);
         if (!await db.UnitReviewers.AnyAsync(x => x.UserId == reviewer.Id && x.OrganizationalUnitId == unit.Id, ct))
             db.UnitReviewers.Add(new UnitReviewer(reviewer.Id, unit.Id));
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+
+        async Task EnsureEmployeeAsync(Account account, OrganizationalUnit destination)
+        {
+            var existing = await db.Employees.SingleOrDefaultAsync(x => x.UserId == account.Id, ct);
+            if (existing is null)
+                db.Employees.Add(new Employee(account.Id, destination.Id, account.DisplayName));
+            else if (existing.OrganizationalUnitId != destination.Id)
+                throw new InvalidOperationException("Demo account already belongs to a different unit.");
+        }
 
         async Task<Account> EnsureAccountAsync(string username, string displayName)
         {

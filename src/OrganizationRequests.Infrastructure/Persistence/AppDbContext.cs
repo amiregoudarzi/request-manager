@@ -14,6 +14,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 {
     public DbSet<OrganizationalUnit> OrganizationalUnits => Set<OrganizationalUnit>();
     public DbSet<UnitReviewer> UnitReviewers => Set<UnitReviewer>();
+    public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<ServiceRequest> Requests => Set<ServiceRequest>();
     public DbSet<RequestStatusHistory> RequestStatusHistories => Set<RequestStatusHistory>();
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
@@ -31,6 +32,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         base.OnModelCreating(builder);
         builder.ApplyConfiguration(new AccountConfiguration());
         builder.ApplyConfiguration(new UnitConfiguration());
+        builder.ApplyConfiguration(new EmployeeConfiguration());
         builder.ApplyConfiguration(new ReviewerConfiguration());
         builder.ApplyConfiguration(new RequestConfiguration());
         builder.ApplyConfiguration(new HistoryConfiguration());
@@ -114,6 +116,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         }
     }
 
+    private sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
+    {
+        public void Configure(EntityTypeBuilder<Employee> b)
+        {
+            b.ToTable("Employees");
+            ConfigureEntity(b);
+            b.Property(x => x.UserId).HasColumnName("user_id");
+            b.Property(x => x.OrganizationalUnitId).HasColumnName("organizational_unit_id");
+            b.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            b.HasIndex(x => x.UserId).IsUnique();
+            b.HasAlternateKey(x => new { x.UserId, x.OrganizationalUnitId });
+            b.HasAlternateKey(x => new { x.Id, x.OrganizationalUnitId });
+            b.HasOne<Account>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<OrganizationalUnit>().WithMany().HasForeignKey(x => x.OrganizationalUnitId)
+                .OnDelete(DeleteBehavior.Restrict);
+            b.HasIndex(x => new { x.OrganizationalUnitId, x.Name, x.Id });
+        }
+    }
+
     private sealed class ReviewerConfiguration : IEntityTypeConfiguration<UnitReviewer>
     {
         public void Configure(EntityTypeBuilder<UnitReviewer> b)
@@ -123,7 +144,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             b.Property(x => x.UserId).HasColumnName("user_id");
             b.Property(x => x.OrganizationalUnitId).HasColumnName("organizational_unit_id");
             b.HasIndex(x => new { x.UserId, x.OrganizationalUnitId }).IsUnique();
-            b.HasOne<Account>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<Employee>().WithMany().HasForeignKey(x => new { x.UserId, x.OrganizationalUnitId })
+                .HasPrincipalKey(x => new { x.UserId, x.OrganizationalUnitId }).OnDelete(DeleteBehavior.Restrict);
             b.HasOne<OrganizationalUnit>().WithMany().HasForeignKey(x => x.OrganizationalUnitId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
@@ -144,11 +166,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             b.Property(x => x.Type).HasColumnName("request_type").HasConversion<string>().HasMaxLength(32);
             b.Property(x => x.CreatedById).HasColumnName("created_by_id");
             b.Property(x => x.OrganizationalUnitId).HasColumnName("organizational_unit_id");
+            b.Property(x => x.ReceiverEmployeeId).HasColumnName("receiver_employee_id");
             b.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
             b.Property(x => x.RowVersion).HasColumnName("row_version").IsRowVersion();
             b.HasOne<Account>().WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.Restrict);
             b.HasOne<OrganizationalUnit>().WithMany().HasForeignKey(x => x.OrganizationalUnitId)
                 .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<Employee>().WithMany().HasForeignKey(x => new { x.ReceiverEmployeeId, x.OrganizationalUnitId })
+                .HasPrincipalKey(x => new { x.Id, x.OrganizationalUnitId }).OnDelete(DeleteBehavior.Restrict);
             b.HasMany(x => x.History).WithOne().HasForeignKey(x => x.RequestId).OnDelete(DeleteBehavior.Restrict);
             b.Navigation(x => x.History).UsePropertyAccessMode(PropertyAccessMode.Field);
             b.HasIndex(x => new { x.CreatedById, x.CreatedDateUtc, x.Id });
