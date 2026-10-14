@@ -1,3 +1,4 @@
+using OrganizationRequests.Domain.Enums;
 using FastEndpoints;
 using OrganizationRequests.Application;
 
@@ -8,7 +9,7 @@ public sealed class Endpoint : Endpoint<Command, RequestResponse>
     public override void Configure()
     {
         Post("/api/requests");
-        Roles("Employee");
+        Roles(nameof(UserRole.Employee));
     }
 
     public override async Task HandleAsync(Command req, CancellationToken ct)
