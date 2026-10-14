@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using OrganizationRequests.Domain.Entities;
+using OrganizationRequests.Domain.Enums;
 using OrganizationRequests.Infrastructure.Persistence;
 using OrganizationRequests.Infrastructure.Security;
 
@@ -28,9 +29,13 @@ public static class DevelopmentSeed
         await EnsureEmployeeAsync(employee, unit);
         await EnsureEmployeeAsync(reviewer, unit);
         await db.SaveChangesAsync(ct);
-        if (!await db.UnitReviewers.AnyAsync(x => x.UserId == reviewer.Id && x.OrganizationalUnitId == unit.Id, ct))
-            db.UnitReviewers.Add(new UnitReviewer(reviewer.Id, unit.Id));
-        await db.SaveChangesAsync(ct);
+        if (reviewer.Role != UserRole.UnitReviewer)
+        {
+            reviewer.Role = UserRole.UnitReviewer;
+            var result = await users.UpdateAsync(reviewer);
+            if (!result.Succeeded)
+                throw new InvalidOperationException(string.Join("; ", result.Errors.Select(x => x.Description)));
+        }
         await transaction.CommitAsync(ct);
 
         async Task EnsureEmployeeAsync(Account account, OrganizationalUnit destination)

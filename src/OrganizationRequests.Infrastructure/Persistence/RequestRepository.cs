@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OrganizationRequests.Application;
 using OrganizationRequests.Application.Abstractions;
 using OrganizationRequests.Domain.Entities;
+using OrganizationRequests.Domain.Enums;
 
 namespace OrganizationRequests.Infrastructure.Persistence;
 
@@ -22,7 +23,8 @@ public sealed class RequestRepository(AppDbContext db, IDistributedLock distribu
             .SingleOrDefaultAsync(ct);
 
     public Task<bool> HasReviewerAsync(Guid userId, Guid unitId, CancellationToken ct) =>
-        db.UnitReviewers.AnyAsync(x => x.UserId == userId && x.OrganizationalUnitId == unitId, ct);
+        db.Employees.AnyAsync(x => x.UserId == userId && x.OrganizationalUnitId == unitId &&
+            db.Users.Any(account => account.Id == x.UserId && account.IsActive && account.Role == UserRole.UnitReviewer), ct);
 
     public async Task<ServiceRequest?> GetForReviewAsync(Guid requestId, CancellationToken ct)
     {
