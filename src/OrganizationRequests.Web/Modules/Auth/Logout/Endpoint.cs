@@ -1,3 +1,4 @@
+using OrganizationRequests.Domain.Enums;
 using FastEndpoints;
 using OrganizationRequests.Application;
 
@@ -8,7 +9,7 @@ public sealed class Endpoint : EndpointWithoutRequest<Command.Response>
     public override void Configure()
     {
         Post("/api/auth/logout");
-        Roles("Employee");
+        Roles(nameof(UserRole.Employee));
     }
 
     public override async Task HandleAsync(CancellationToken ct)
