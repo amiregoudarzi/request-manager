@@ -2,6 +2,9 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using FastEndpoints;
+using FastEndpoints.Swagger;
+using Newtonsoft.Json.Linq;
+using NSwag;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -22,6 +25,24 @@ builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddFastEndpoints();
+if (builder.Environment.IsDevelopment())
+    builder.Services.SwaggerDocument(options =>
+    {
+        options.EnableJWTBearerAuth = false;
+        options.DocumentSettings = settings =>
+        {
+            settings.Title = "Organization Requests API";
+            settings.Version = "v1";
+            settings.Description = "Login through /api/auth/login to use the session cookie. Swagger adds CSRF tokens automatically for writes.";
+            settings.AddAuth(IdentityConstants.ApplicationScheme, new OpenApiSecurityScheme
+            {
+                Type = OpenApiSecuritySchemeType.ApiKey,
+                In = OpenApiSecurityApiKeyLocation.Cookie,
+                Name = "__Host-organization-requests",
+                Description = "Created by the login endpoint; sent automatically by the browser."
+            });
+        };
+    });
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
@@ -114,4 +135,27 @@ app.UseFastEndpoints(config =>
     config.Security.RoleClaimType = ClaimTypes.Role;
     config.Errors.UseProblemDetails();
 });
+if (app.Environment.IsDevelopment())
+    app.UseSwaggerGen(uiConfig: options =>
+    {
+        options.WithCredentials = true;
+        options.AdditionalSettings["requestInterceptor"] = new JRaw("""
+            async function(request) {
+                const target = new URL(request.url, window.location.origin);
+                if (target.origin === window.location.origin && target.pathname.startsWith('/api/')) {
+                    request.credentials = 'same-origin';
+                    if (!['GET', 'HEAD', 'OPTIONS'].includes((request.method || 'GET').toUpperCase())) {
+                        const response = await fetch('/api/auth/csrf', {
+                            credentials: 'same-origin', cache: 'no-store'
+                        });
+                        if (!response.ok) throw new Error('Could not obtain a CSRF token.');
+                        const result = await response.json();
+                        request.headers = request.headers || {};
+                        request.headers['X-CSRF-TOKEN'] = result.token;
+                    }
+                }
+                return request;
+            }
+            """);
+    });
 app.Run();
