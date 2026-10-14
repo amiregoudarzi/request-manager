@@ -11,6 +11,7 @@ public sealed class Command : ICommand<RequestResponse>
     public string Description { get; set; } = string.Empty;
     public RequestType? Type { get; set; }
     public Guid OrganizationalUnitId { get; set; }
+    public Guid? ReceiverEmployeeId { get; set; }
 
     public sealed class CommandHandler(IRequestRepository repository, ICurrentUser user)
         : ICommandHandler<Command, RequestResponse>
@@ -18,7 +19,7 @@ public sealed class Command : ICommand<RequestResponse>
         public async Task<RequestResponse> ExecuteAsync(Command command, CancellationToken ct)
         {
             var request = await repository.CreateAsync(command.Title, command.Description, command.Type!.Value,
-                user.Id, command.OrganizationalUnitId, ct);
+                user.Id, command.OrganizationalUnitId, command.ReceiverEmployeeId, ct);
             return RequestResponse.From(request);
         }
     }
@@ -32,5 +33,6 @@ public sealed class RequestValidator : Validator<Command>
         RuleFor(x => x.Description).NotEmpty().MaximumLength(4000);
         RuleFor(x => x.Type).NotNull().IsInEnum();
         RuleFor(x => x.OrganizationalUnitId).NotEmpty();
+        RuleFor(x => x.ReceiverEmployeeId).NotEqual(Guid.Empty).When(x => x.ReceiverEmployeeId.HasValue);
     }
 }
