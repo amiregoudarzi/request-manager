@@ -64,8 +64,10 @@ public sealed class AccountClaimsFactory(UserManager<Account> users, IOptions<Id
         foreach (var claim in identity.FindAll(Options.ClaimsIdentity.RoleClaimType).ToArray())
             identity.RemoveClaim(claim);
         identity.AddClaim(new Claim(Options.ClaimsIdentity.RoleClaimType, nameof(UserRole.Employee)));
-        if (await db.UnitReviewers.AsNoTracking().AnyAsync(x => x.UserId == user.Id))
-            identity.AddClaim(new Claim(Options.ClaimsIdentity.RoleClaimType, nameof(UserRole.Reviewer)));
+        if (await db.UnitReviewers.AsNoTracking().AnyAsync(x => x.UserId == user.Id &&
+                db.Employees.Any(employee => employee.UserId == user.Id &&
+                    employee.OrganizationalUnitId == x.OrganizationalUnitId)))
+            identity.AddClaim(new Claim(Options.ClaimsIdentity.RoleClaimType, nameof(UserRole.UnitReviewer)));
         return identity;
     }
 }
