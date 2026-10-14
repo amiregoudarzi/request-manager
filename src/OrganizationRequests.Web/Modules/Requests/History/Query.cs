@@ -21,10 +21,13 @@ public sealed class Query : ICommand<Query.Response>
     {
         public async Task<Response> ExecuteAsync(Query query, CancellationToken ct)
         {
-            if (!await repository.VisibleTo(user.Id).AnyAsync(x => x.Id == query.Id, ct))
-                throw new RequestException(404, "Request was not found.");
+            var total = await repository.VisibleTo(user.Id).Where(x => x.Id == query.Id)
+                .Select(request => (int?)db.RequestStatusHistories.Count(x => x.RequestId == request.Id))
+                .SingleOrDefaultAsync(ct)
+                ?? throw new RequestException(404, "Request was not found.");
+            if (total == 0)
+                return new Response(query.Page, query.PageSize, total, []);
             var history = db.RequestStatusHistories.AsNoTracking().Where(x => x.RequestId == query.Id);
-            var total = await history.CountAsync(ct);
             var items = await history.OrderBy(x => x.CreatedDateUtc).ThenBy(x => x.Id)
                 .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
                 .Select(x => new Item(x.Id, x.PreviousStatus, x.NewStatus, x.ActorId, x.CreatedDateUtc, x.Comment))
