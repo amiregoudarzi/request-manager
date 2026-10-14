@@ -43,6 +43,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
         builder.Property(x => x.CreatedDateUtc).HasColumnName("created_date_utc")
+            .HasConversion(value => value, value => DateTime.SpecifyKind(value, DateTimeKind.Utc))
             .HasColumnType("datetime2").IsRequired();
     }
 
@@ -81,7 +82,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             b.ToTable("Users");
             b.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
-            b.Property(x => x.CreatedDateUtc).HasColumnName("created_date_utc").HasColumnType("datetime2");
+            b.Property(x => x.CreatedDateUtc).HasColumnName("created_date_utc").HasColumnType("datetime2")
+                .HasConversion(value => value, value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
             b.Property(x => x.DisplayName).HasColumnName("display_name").HasMaxLength(200).IsRequired();
             b.Property(x => x.IsActive).HasColumnName("is_active");
             b.Property(x => x.UserName).HasColumnName("user_name");
