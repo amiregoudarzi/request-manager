@@ -13,15 +13,12 @@ public sealed class Command : ICommand<RequestResponse>
     public Guid OrganizationalUnitId { get; set; }
     public Guid? ReceiverEmployeeId { get; set; }
 
-    public sealed class CommandHandler(IRequestRepository repository, ICurrentUser user)
+    public sealed class CommandHandler(IRequestService service, ICurrentUser user)
         : ICommandHandler<Command, RequestResponse>
     {
-        public async Task<RequestResponse> ExecuteAsync(Command command, CancellationToken ct)
-        {
-            var request = await repository.CreateAsync(command.Title, command.Description, command.Type!.Value,
+        public Task<RequestResponse> ExecuteAsync(Command command, CancellationToken ct) =>
+            service.CreateAsync(command.Title, command.Description, command.Type!.Value,
                 user.Id, command.OrganizationalUnitId, command.ReceiverEmployeeId, ct);
-            return RequestResponse.From(request);
-        }
     }
 }
 

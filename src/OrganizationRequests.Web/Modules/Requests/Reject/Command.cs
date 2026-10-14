@@ -10,15 +10,12 @@ public sealed class Command : ICommand<RequestResponse>
     public Guid Id { get; set; }
     public string Reason { get; set; } = string.Empty;
 
-    public sealed class CommandHandler(IRequestRepository repository, ICurrentUser user)
+    public sealed class CommandHandler(IRequestService service, ICurrentUser user)
         : ICommandHandler<Command, RequestResponse>
     {
-        public async Task<RequestResponse> ExecuteAsync(Command command, CancellationToken ct)
-        {
-            var request = await repository.ReviewAsync(command.Id, user.Id, user.IsUnitReviewer,
+        public Task<RequestResponse> ExecuteAsync(Command command, CancellationToken ct) =>
+            service.ReviewAsync(command.Id, user.Id,
                 RequestStatus.Rejected, command.Reason, ct);
-            return RequestResponse.From(request);
-        }
     }
 }
 

@@ -39,6 +39,7 @@ static async Task RunApplicationAsync(string[] args)
     builder.Services.AddInfrastructure(connectionString);
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+    builder.Services.AddScoped<IRequestService, RequestService>();
     builder.Services.AddFastEndpoints();
     if (builder.Environment.IsDevelopment())
         builder.Services.SwaggerDocument(options =>
